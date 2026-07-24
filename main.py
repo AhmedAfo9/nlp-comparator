@@ -6,7 +6,7 @@ import numpy as np
 import re
 import os
 
-app = FastAPI(title="Advanced NLP Text Comparator", version="2.0")
+app = FastAPI(title="Sovereign Linguistic Comparator Engine", version="3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,11 +26,11 @@ class AnalysisRequest(BaseModel):
     ai_text: str
     human_text: str
 
-# قائمة عبارات البصمة الرقمية للذكاء الاصطناعي
 AI_BUZZWORDS = [
     "delve", "crucial", "testament", "tapestry", "paramount", "furthermore",
     "moreover", "vital", "intricate", "multifaceted", "underscores", "pivotal",
-    "foster", "interplay", "beacon", "in conclusion", "it is important to note"
+    "foster", "interplay", "beacon", "in conclusion", "it is important to note",
+    "plays a vital role", "shed light", "comprehensive"
 ]
 
 def count_syllables(word: str) -> int:
@@ -50,7 +50,6 @@ def compute_deep_nlp_metrics(text: str):
     unique_words = set(words)
     ttr = len(unique_words) / len(words)
     
-    # تفاصيل الجمل
     sentences = list(doc.sents)
     sent_lengths = [len([t for t in sent if not t.is_punct and not t.is_space]) for sent in sentences]
     
@@ -60,17 +59,14 @@ def compute_deep_nlp_metrics(text: str):
     max_sent_len = int(np.max(sent_lengths)) if sent_lengths else 0
     std_dev_sent = float(np.std(sent_lengths)) if sent_lengths else 0.0
     
-    # المقاطع اللفظية وسهولة القراءة (Flesch Reading Ease)
     total_syllables = sum(count_syllables(w) for w in words)
     asl = avg_sent_len
     asw = total_syllables / len(words) if words else 0
     flesch_score = 206.835 - (1.015 * asl) - (84.6 * asw)
     
-    # كلمات الكثافة والربط
     stop_words = [t for t in tokens if t.is_stop]
     stop_word_ratio = len(stop_words) / len(tokens)
     
-    # أجزاء الكلام التفصيلية
     pos_counts = {"NOUN": 0, "VERB": 0, "ADJ": 0, "ADV": 0, "PRON": 0, "CONJ": 0}
     for t in tokens:
         pos = t.pos_
@@ -81,10 +77,8 @@ def compute_deep_nlp_metrics(text: str):
             
     pos_ratios = {k: round((v / len(tokens)) * 100, 2) for k, v in pos_counts.items()}
     
-    # كشف كلمات الذكاء الاصطناعي الشائعة
     found_buzzwords = [w for w in AI_BUZZWORDS if re.search(r'\b' + re.escape(w) + r'\b', text.lower())]
     
-    # علامات الترقيم
     puncts = [t.text for t in doc if t.is_punct]
     punct_ratio = round((len(puncts) / len(doc)) * 100, 2) if len(doc) > 0 else 0
 
@@ -104,36 +98,36 @@ def compute_deep_nlp_metrics(text: str):
         "punctuation_percentage": punct_ratio
     }
 
-def generate_comparative_verdict(ai_m, hum_m):
+def generate_english_academic_verdict(ai_m, hum_m):
     reasons = []
     
-    # فحص التباين (Burstiness)
+    # Burstiness Variance Diagnosis
     if hum_m["burstiness_variance"] > ai_m["burstiness_variance"]:
-        reasons.append(f"النص البشري يمتلك تباين هكلي أعلى الجمل ({hum_m['burstiness_variance']} مقابل {ai_m['burstiness_variance']}) مما يدل على إيقاع بشري طبيعي.")
+        reasons.append(f"Rhythmic Burstiness: Human reference exhibits higher sentence variance ({hum_m['burstiness_variance']} vs {ai_m['burstiness_variance']}), confirming natural, dynamic clause length distribution.")
     else:
-        reasons.append(f"نص الـ AI يظهر تباين جمل مرتفع بشكل غير معتاد.")
+        reasons.append(f"Rhythmic Monotony: AI sample demonstrates artificial sentence length uniformity ({ai_m['burstiness_variance']} vs {hum_m['burstiness_variance']}), characteristic of LLM token probability modeling.")
         
-    # فحص أجزاء الكلام (الصفات والأفعال)
+    # POS Lexical Density Diagnosis
     if ai_m["pos_distribution"]["ADJ"] > hum_m["pos_distribution"]["ADJ"]:
-        reasons.append(f"نص الـ AI يتضمن نسبة صفات أعلى ({ai_m['pos_distribution']['ADJ']}% مقابل {hum_m['pos_distribution']['ADJ']}%) وهو نمط تزييني مألوف للذكاء الاصطناعي.")
+        reasons.append(f"Adjectival Embellishment: AI sample relies on a higher descriptive adjective ratio ({ai_m['pos_distribution']['ADJ']}% vs {hum_m['pos_distribution']['ADJ']}%), reflecting standard machine stylistic inflation.")
         
     if hum_m["pos_distribution"]["VERB"] > ai_m["pos_distribution"]["VERB"]:
-        reasons.append(f"النص البشري يعتمد على أفعال حركة أكثر ({hum_m['pos_distribution']['VERB']}% مقابل {ai_m['pos_distribution']['VERB']}%).")
+        reasons.append(f"Syntactic Agency: Human reference relies more on active verbs ({hum_m['pos_distribution']['VERB']}% vs {ai_m['pos_distribution']['VERB']}%), providing stronger prose dynamism.")
         
-    # فحص الكلمات الشائعة للـ AI
+    # Detected AI Buzzwords
     if len(ai_m["ai_buzzwords_detected"]) > 0:
-        reasons.append(f"تم رصد {len(ai_m['ai_buzzwords_detected'])} عبارة بصمة نمطية للذكاء الاصطناعي في النص الأول: ({', '.join(ai_m['ai_buzzwords_detected'])}).")
+        reasons.append(f"Probabilistic Collocations: Detected {len(ai_m['ai_buzzwords_detected'])} high-probability AI marker word(s): [{', '.join(ai_m['ai_buzzwords_detected'])}].")
 
     return reasons
 
 @app.post("/compare")
 def compare_texts(req: AnalysisRequest):
     if not req.ai_text.strip() or not req.human_text.strip():
-        raise HTTPException(status_code=400, detail="Both texts are required.")
+        raise HTTPException(status_code=400, detail="Both texts must be provided.")
     
     ai_results = compute_deep_nlp_metrics(req.ai_text)
     human_results = compute_deep_nlp_metrics(req.human_text)
-    verdict_reasons = generate_comparative_verdict(ai_results, human_results)
+    verdict_reasons = generate_english_academic_verdict(ai_results, human_results)
     
     return {
         "status": "success",
@@ -144,4 +138,4 @@ def compare_texts(req: AnalysisRequest):
 
 @app.get("/")
 def root():
-    return {"status": "active", "message": "Deep NLP Compare Engine v2.0 Active!"}
+    return {"status": "active", "message": "English Academic NLP Comparator API v3.0 Active"}
