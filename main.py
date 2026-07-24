@@ -3,10 +3,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
+import os
 
 app = FastAPI(title="NLP Text Analyzer API", version="1.0")
 
-# تفعيل CORS لتسمح لموقعك على Cloudflare بالاتصال بالباكإند
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,12 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# تحميل نموذج spaCy للغة الإنجليزية
+# تحميل النموذج بأمان
 try:
     nlp = spacy.load("en_core_web_sm")
 except Exception:
-    import spacy.cli
-    spacy.cli.download("en_core_web_sm")
+    os.system("python -m spacy download en_core_web_sm")
     nlp = spacy.load("en_core_web_sm")
 
 class AnalysisRequest(BaseModel):
@@ -35,12 +34,12 @@ def compute_nlp_metrics(text: str):
     
     words = [t.text.lower() for t in tokens]
     unique_words = set(words)
-    ttr = len(unique_words) / len(words) if words else 0  # Type-Token Ratio
+    ttr = len(unique_words) / len(words) if words else 0
     
     sentences = list(doc.sents)
     sent_lengths = [len([t for t in sent if not t.is_punct and not t.is_space]) for sent in sentences]
     avg_sent_len = float(np.mean(sent_lengths)) if sent_lengths else 0.0
-    sent_len_variance = float(np.var(sent_lengths)) if len(sent_lengths) > 1 else 0.0  # Burstiness
+    sent_len_variance = float(np.var(sent_lengths)) if len(sent_lengths) > 1 else 0.0
     
     stop_words = [t for t in tokens if t.is_stop]
     stop_word_ratio = len(stop_words) / len(tokens) if tokens else 0
